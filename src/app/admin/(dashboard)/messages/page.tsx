@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, onSnapshot, doc, updateDoc, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface Message {
@@ -107,8 +107,19 @@ export default function MessagesPage() {
                 <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
                   {msg.message}
                 </p>
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span className={`badge ${typeColors[msg.type] ?? "badge-blue"}`}>{msg.type}</span>
+                  <button
+                    className="btn-sm btn-red"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selected?.id === msg.id) setSelected(null);
+                      deleteDoc(doc(db, "messages", msg.id));
+                    }}
+                    style={{ fontSize: 11, padding: "3px 10px" }}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
@@ -148,6 +159,16 @@ export default function MessagesPage() {
                   className="btn-sm btn-green" style={{ padding: "8px 12px" }}>
                   💬 WhatsApp
                 </a>
+                <button
+                  className="btn-sm btn-red"
+                  style={{ padding: "8px 12px" }}
+                  onClick={() => {
+                    deleteDoc(doc(db, "messages", selected.id));
+                    setSelected(null);
+                  }}
+                >
+                  🗑️ Delete
+                </button>
               </div>
             </div>
           )}

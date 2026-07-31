@@ -4,14 +4,14 @@ import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDjPLQU8a3xt-MyaLQ6ZjxU0kYSt58HGSE",
-  authDomain: "sollabstech-fbb8f.firebaseapp.com",
-  databaseURL: "https://sollabstech-fbb8f-default-rtdb.firebaseio.com",
-  projectId: "sollabstech-fbb8f",
-  storageBucket: "sollabstech-fbb8f.firebasestorage.app",
-  messagingSenderId: "445962516768",
-  appId: "1:445962516768:web:e5d03e17940eda9d767f45",
-  measurementId: "G-TTTWZR45Y8",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
