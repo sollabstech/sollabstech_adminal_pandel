@@ -16,10 +16,20 @@ interface Product {
   condition: string;
   status: string;
   image: string;
+  videoUrl?: string;
+  accessories?: string;
+  ram?: string;
+  processor?: string;
+  storageType?: string;
+  graphicsCard?: string;
   createdAt?: { seconds: number } | null;
 }
 
-const emptyForm = { name: "", category: "Gaming Laptops", price: "", condition: "Good", image: "", imageFile: null as File | null };
+const emptyForm = {
+  name: "", category: "Gaming Laptops", price: "", condition: "Good",
+  accessories: "Only Laptop", image: "", imageFile: null as File | null,
+  videoUrl: "", ram: "", processor: "", storageType: "SSD", storageSize: "", graphicsCard: "",
+};
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -75,6 +85,13 @@ export default function ProductsPage() {
         condition: form.condition,
         status: "available",
         image: imageUrl,
+        videoUrl: form.videoUrl.trim(),
+        accessories: form.accessories,
+        ram: form.ram.trim(),
+        processor: form.processor.trim(),
+        storageType: form.storageType,
+        storageSize: form.storageSize.trim(),
+        graphicsCard: form.graphicsCard.trim(),
         createdAt: serverTimestamp(),
       });
       setForm(emptyForm);
@@ -113,6 +130,7 @@ export default function ProductsPage() {
             background: "#0D1526", border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: 18, width: "100%", maxWidth: 480,
             boxShadow: "0 24px 60px rgba(0,0,0,0.6)", overflow: "hidden",
+            display: "flex", flexDirection: "column", maxHeight: "90vh",
           }}>
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -127,7 +145,7 @@ export default function ProductsPage() {
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: "#64748B", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
 
-            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
               {/* Image Upload */}
               <div>
                 <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -191,8 +209,80 @@ export default function ProductsPage() {
               </div>
 
               <div>
+                <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Accessories Included</label>
+                <select value={form.accessories} onChange={(e) => setForm({ ...form, accessories: e.target.value })} style={{ width: "100%", boxSizing: "border-box" }}>
+                  {[
+                    "Only Laptop",
+                    "Laptop with Box",
+                    "Laptop with Box and Bill",
+                    "Laptop with Box, Bill & Brand Warranty",
+                  ].map((a) => <option key={a}>{a}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>RAM</label>
+                  <input placeholder="e.g. 16GB DDR5" value={form.ram} onChange={(e) => setForm({ ...form, ram: e.target.value })} style={{ width: "100%", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Processor</label>
+                  <input placeholder="e.g. Intel i7-13700H" value={form.processor} onChange={(e) => setForm({ ...form, processor: e.target.value })} style={{ width: "100%", boxSizing: "border-box" }} />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Storage Type</label>
+                  <select value={form.storageType} onChange={(e) => setForm({ ...form, storageType: e.target.value })} style={{ width: "100%", boxSizing: "border-box" }}>
+                    {["SSD", "HDD", "NVMe", "NVMe M.2", "NVMe Gen 3", "NVMe Gen 4"].map((s) => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Storage Size</label>
+                  <input placeholder="e.g. 512GB / 1TB" value={form.storageSize} onChange={(e) => setForm({ ...form, storageSize: e.target.value })} style={{ width: "100%", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Graphics Card</label>
+                  <input placeholder="e.g. RTX 4060" value={form.graphicsCard} onChange={(e) => setForm({ ...form, graphicsCard: e.target.value })} style={{ width: "100%", boxSizing: "border-box" }} />
+                </div>
+              </div>
+
+              <div>
                 <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Price (₹) *</label>
-                <input type="number" placeholder="65000" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ width: "100%", boxSizing: "border-box" }} />
+                <input
+                  type="text"
+                  placeholder="e.g. 65,000"
+                  value={form.price ? Number(form.price.replace(/,/g, "")).toLocaleString("en-IN") : ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
+                    setForm({ ...form, price: raw });
+                  }}
+                  style={{ width: "100%", boxSizing: "border-box" }}
+                />
+                {form.price && (
+                  <div style={{ marginTop: 6, fontSize: 13, color: "#22C55E", fontWeight: 600 }}>
+                    ₹{Number(form.price).toLocaleString("en-IN")}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, color: "#475569", fontWeight: 600, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  🎬 YouTube Video Link <span style={{ color: "#334155", fontWeight: 400, textTransform: "none" }}>(optional)</span>
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={form.videoUrl}
+                  onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+                  style={{ width: "100%", boxSizing: "border-box" }}
+                />
+                {form.videoUrl && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#22C55E" }}>
+                    ✓ Video link added
+                  </div>
+                )}
               </div>
             </div>
 
