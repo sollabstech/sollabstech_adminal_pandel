@@ -6,11 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: "📊", exact: true },
   { href: "/admin/products", label: "Products", icon: "🖥️" },
-  { href: "/admin/portfolio", label: "Portfolio", icon: "💼" },
   { href: "/admin/clients", label: "Clients", icon: "👥" },
-  { href: "/admin/warranty", label: "Warranty", icon: "🛡️" },
   { href: "/admin/messages", label: "Messages", icon: "📨" },
-  { href: "/admin/blog", label: "Blog", icon: "📝" },
 ];
 
 export default function AdminSidebar() {
