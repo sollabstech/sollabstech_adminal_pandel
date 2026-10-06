@@ -156,6 +156,7 @@ const SERVICE_OPTIONS: { value: ServiceType; label: string }[] = [
   { value: "custom",    label: "Custom Software" },
   { value: "ecommerce", label: "E-Commerce" },
   { value: "admin",     label: "Admin Panel" },
+  { value: "vendor",    label: "Vendor Website" },
 ];
 
 const LINK_TYPE_OPTIONS: { value: LinkType; label: string }[] = [
@@ -379,7 +380,7 @@ export default function ClientsPage() {
 
   const SERVICE_LABELS: Record<string, string> = {
     mobile: "Mobile", website: "Website", windows: "Windows",
-    custom: "Custom", ecommerce: "E-Commerce", admin: "Admin",
+    custom: "Custom", ecommerce: "E-Commerce", admin: "Admin", vendor: "Vendor",
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -634,28 +635,6 @@ export default function ClientsPage() {
                     <div>
                       <Label>Country</Label>
                       <input value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} placeholder="India" style={inputStyle} />
-                    </div>
-                  </div>
-                  {/* Private fields */}
-                  <div style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 12, padding: "16px" }}>
-                    <div style={{ fontSize: 11, color: "#F87171", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>🔒 Private — Admin Only (never shown publicly)</div>
-                    <div style={gridTwo}>
-                      <div>
-                        <Label>Client Email</Label>
-                        <input type="email" value={privateForm.email || ""} onChange={(e) => setPrivateForm((p) => ({ ...p, email: e.target.value }))} placeholder="client@company.com" style={inputStyle} />
-                      </div>
-                      <div>
-                        <Label>Phone</Label>
-                        <input value={privateForm.phone || ""} onChange={(e) => setPrivateForm((p) => ({ ...p, phone: e.target.value }))} placeholder="+91 98765 43210" style={inputStyle} />
-                      </div>
-                    </div>
-                    <div style={{ marginTop: 14 }}>
-                      <Label>Project Value</Label>
-                      <input value={privateForm.projectValue || ""} onChange={(e) => setPrivateForm((p) => ({ ...p, projectValue: e.target.value }))} placeholder="e.g. ₹1,20,000" style={inputStyle} />
-                    </div>
-                    <div style={{ marginTop: 14 }}>
-                      <Label>Internal Notes</Label>
-                      <textarea value={privateForm.internalNotes || ""} onChange={(e) => setPrivateForm((p) => ({ ...p, internalNotes: e.target.value }))} placeholder="Any internal notes about this client..." rows={2} style={{ ...inputStyle, resize: "vertical" }} />
                     </div>
                   </div>
                 </div>
