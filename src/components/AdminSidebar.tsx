@@ -66,7 +66,7 @@ export default function AdminSidebar() {
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 16 }}>
         <div style={{ padding: "8px 14px", marginBottom: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>Admin User</div>
-          <div style={{ fontSize: 11, color: "#334155" }}>admin@sollabstech.com</div>
+          <div style={{ fontSize: 11, color: "#334155" }}>sollabstech</div>
         </div>
         <button
           className="sidebar-link"

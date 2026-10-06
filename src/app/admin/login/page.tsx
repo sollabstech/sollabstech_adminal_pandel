@@ -14,11 +14,10 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     await new Promise((r) => setTimeout(r, 800));
-    // Demo credentials
-    if (creds.email === "admin@sollabstech.com" && creds.password === "admin123") {
+    if (creds.email === "sollabstech" && creds.password === "sollabstech") {
       router.push("/admin");
     } else {
-      setError("Invalid credentials. Try admin@sollabstech.com / admin123");
+      setError("Invalid credentials.");
     }
     setLoading(false);
   };
@@ -70,11 +69,11 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: "block", fontSize: 13, color: "#64748B", marginBottom: 6, fontWeight: 500 }}>
-              Email
+              Username
             </label>
             <input
-              type="email"
-              placeholder="admin@sollabstech.com"
+              type="text"
+              placeholder="Username"
               value={creds.email}
               onChange={(e) => setCreds({ ...creds, email: e.target.value })}
               required
@@ -111,12 +110,6 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign in →"}
           </button>
         </form>
-
-        <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: "rgba(0,102,255,0.06)", border: "1px solid rgba(0,102,255,0.15)" }}>
-          <p style={{ fontSize: 11, color: "#475569", textAlign: "center" }}>
-            Demo: admin@sollabstech.com / admin123
-          </p>
-        </div>
       </div>
     </div>
   );
