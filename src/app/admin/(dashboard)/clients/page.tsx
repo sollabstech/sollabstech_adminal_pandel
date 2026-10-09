@@ -11,7 +11,7 @@ import { db, storage } from "@/lib/firebase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ServiceType = "mobile" | "website" | "windows" | "custom" | "ecommerce" | "admin";
+type ServiceType = "mobile" | "website" | "windows" | "custom" | "ecommerce" | "admin" | "vendor";
 type LinkType = "playstore" | "appstore" | "website" | "windows" | "other";
 type ProjectStatus = "in-progress" | "completed" | "maintenance" | "on-hold";
 type LogoBg = "transparent" | "white" | "dark";
