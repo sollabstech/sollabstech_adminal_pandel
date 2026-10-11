@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getAuth, type Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,9 +19,8 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// getAuth uses browser APIs — call it only on the client side
-export function getClientAuth() {
-  const { getAuth } = require("firebase/auth");
+// Call only from client-side effects or event handlers.
+export function getClientAuth(): Auth {
   return getAuth(app);
 }
 

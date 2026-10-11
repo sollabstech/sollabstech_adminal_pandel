@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAdminAuth } from "@/lib/adminAuth";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: "📊", exact: true },
   { href: "/admin/products", label: "Products", icon: "🖥️" },
   { href: "/admin/clients", label: "Clients", icon: "👥" },
+  { href: "/admin/warranty", label: "Warranty", icon: "🛡️" },
   { href: "/admin/messages", label: "Messages", icon: "📨" },
 ];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
+  const { user, signOut } = useAdminAuth();
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -65,12 +67,12 @@ export default function AdminSidebar() {
       {/* Bottom */}
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 16 }}>
         <div style={{ padding: "8px 14px", marginBottom: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>Admin User</div>
-          <div style={{ fontSize: 11, color: "#334155" }}>sollabstech</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>{user?.displayName ?? "Admin"}</div>
+          <div style={{ fontSize: 11, color: "#334155", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email}</div>
         </div>
         <button
           className="sidebar-link"
-          onClick={() => router.push("/admin/login")}
+          onClick={() => signOut()}
         >
           <span style={{ fontSize: 16 }}>🚪</span>
           Sign Out
