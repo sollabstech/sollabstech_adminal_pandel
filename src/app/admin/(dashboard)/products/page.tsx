@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, serverTimestamp, query, orderBy,
+  collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, getDoc, updateDoc, serverTimestamp, query, orderBy,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
@@ -80,7 +80,10 @@ const emptyForm = {
   warrantyRemaining: "",
   purchaseDate: "",
   imei: "",
-  imageFiles: [] as File[],
+  stock: "1",
+  status: "available",
+  // Parallel arrays: a null file means the preview is an already-uploaded photo URL.
+  imageFiles: [] as (File | null)[],
   imagePreviews: [] as string[],
 };
 
@@ -133,6 +136,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "laptop" | "mobile">("all");
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; slug: string; hadImei: boolean } | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [dragOver, setDragOver] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -199,6 +203,64 @@ export default function ProductsPage() {
     }));
   }
 
+  function closeModal() {
+    setShowAdd(false);
+    setEditing(null);
+    setForm(emptyForm);
+  }
+
+  function openAdd() {
+    setEditing(null);
+    setForm(emptyForm);
+    setShowAdd(true);
+  }
+
+  async function openEdit(product: Product) {
+    const raw = product as unknown as Record<string, unknown>;
+    const str = (k: keyof FormState) => (typeof raw[k] === "string" ? (raw[k] as string) : (emptyForm[k] as string));
+    const isPhone = product.productType === "mobile" || isMobileCategory(product.category);
+    const images = product.images?.length ? product.images : product.image ? [product.image] : [];
+    setForm({
+      ...emptyForm,
+      productType: isPhone ? "mobile" : "laptop",
+      name: product.name ?? "",
+      category: product.category ?? emptyForm.category,
+      price: product.price != null ? String(product.price) : "",
+      originalPrice: product.originalPrice != null ? String(product.originalPrice) : "",
+      condition: product.condition ?? emptyForm.condition,
+      accessories: str("accessories"),
+      description: str("description"),
+      videoUrl: str("videoUrl"),
+      processor: str("processor"), ram: str("ram"), storageType: str("storageType"), storageSize: str("storageSize"),
+      graphicsCard: str("graphicsCard"), display: str("display"), os: str("os"), battery: str("battery"),
+      ports: str("ports"), weight: str("weight"), brand: str("brand"), mobileColor: str("mobileColor"),
+      mobileRam: str("mobileRam"), mobileStorage: str("mobileStorage"), network: str("network"), chipset: str("chipset"),
+      rearCamera: str("rearCamera"), frontCamera: str("frontCamera"), fastCharging: str("fastCharging"), simType: str("simType"),
+      refreshRate: str("refreshRate"), ipRating: str("ipRating"), batteryHealth: str("batteryHealth"),
+      physicalCondition: str("physicalCondition"), screenCondition: str("screenCondition"), partsReplaced: str("partsReplaced"),
+      biometricWorking: str("biometricWorking"), warrantyRemaining: str("warrantyRemaining"), purchaseDate: str("purchaseDate"),
+      stock: product.stock != null ? String(product.stock) : "1",
+      status: product.status ?? "available",
+      imageFiles: images.map(() => null),
+      imagePreviews: images,
+    });
+    const slug = typeof raw.slug === "string" ? raw.slug : "";
+    setEditing({ id: product.id, slug, hadImei: false });
+    setShowAdd(true);
+    if (isPhone) {
+      try {
+        const snap = await getDoc(doc(db, "products", product.id, "private", "imei"));
+        const imei = snap.exists() ? String(snap.data().imei ?? "") : "";
+        if (imei) {
+          setForm((f) => ({ ...f, imei }));
+          setEditing((e) => (e && e.id === product.id ? { ...e, hadImei: true } : e));
+        }
+      } catch (err) {
+        console.error("Couldn't load IMEI:", err);
+      }
+    }
+  }
+
   const handleDelete = async (id: string) => {
     if (confirm("Delete this product?")) {
       await deleteDoc(doc(db, "products", id));
@@ -210,15 +272,23 @@ export default function ProductsPage() {
     setSaving(true);
     try {
       const imageUrls: string[] = [];
+      const newCount = form.imageFiles.filter(Boolean).length;
+      let uploaded = 0;
       for (let i = 0; i < form.imageFiles.length; i++) {
-        setSaveProgress(`Uploading image ${i + 1} of ${form.imageFiles.length}...`);
-        const storageRef = ref(storage, `products/${Date.now()}_${form.imageFiles[i].name}`);
-        await uploadBytes(storageRef, form.imageFiles[i]);
-        const url = await getDownloadURL(storageRef);
-        imageUrls.push(url);
+        const file = form.imageFiles[i];
+        if (!file) {
+          imageUrls.push(form.imagePreviews[i]);
+          continue;
+        }
+        uploaded++;
+        setSaveProgress(`Uploading image ${uploaded} of ${newCount}...`);
+        const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        imageUrls.push(await getDownloadURL(storageRef));
       }
       setSaveProgress("Saving product...");
-      const slug = form.name
+      // Keep an existing product's URL stable so search results and shared links don't break.
+      const slug = editing?.slug || form.name
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
         .trim()
@@ -232,14 +302,13 @@ export default function ProductsPage() {
         category: form.category,
         price: parseInt(form.price),
         originalPrice: form.originalPrice ? parseInt(form.originalPrice) : null,
-        stock: 1,
+        stock: Math.max(0, parseInt(form.stock) || 0),
         condition: form.condition,
-        status: "available",
+        status: form.status,
         images: imageUrls,
         image: imageUrls[0] || "",
         videoUrl: form.videoUrl.trim(),
         description: form.description.trim(),
-        createdAt: serverTimestamp(),
       };
 
       if (form.productType === "laptop") {
@@ -288,21 +357,28 @@ export default function ProductsPage() {
         }
       }
 
-      const productRef = await addDoc(collection(db, "products"), productData);
-
-      // IMEI stored in a private sub-collection — NEVER exposed to the public website.
-      // Firestore rule to add: match /products/{id}/private/{doc} { allow read, write: if request.auth != null && request.auth.token.admin == true; }
-      if (form.productType === "mobile" && form.imei.trim()) {
-        await setDoc(doc(db, "products", productRef.id, "private", "imei"), {
-          imei: form.imei.trim(),
-          addedAt: serverTimestamp(),
-        });
+      let productId: string;
+      if (editing) {
+        productData.updatedAt = serverTimestamp();
+        await updateDoc(doc(db, "products", editing.id), productData);
+        productId = editing.id;
+      } else {
+        productData.createdAt = serverTimestamp();
+        productId = (await addDoc(collection(db, "products"), productData)).id;
       }
 
-      setForm(emptyForm);
-      setShowAdd(false);
+      // IMEI lives in a private sub-collection that only admins can read.
+      const imeiRef = doc(db, "products", productId, "private", "imei");
+      if (form.productType === "mobile" && form.imei.trim()) {
+        await setDoc(imeiRef, { imei: form.imei.trim(), addedAt: serverTimestamp() });
+      } else if (editing?.hadImei) {
+        await deleteDoc(imeiRef);
+      }
+
+      closeModal();
     } catch (err) {
-      console.error("Error adding product:", err);
+      console.error("Error saving product:", err);
+      alert("Couldn't save the product. Please check your connection and try again.");
     }
     setSaveProgress("");
     setSaving(false);
@@ -320,7 +396,7 @@ export default function ProductsPage() {
             {loading ? "Loading..." : `${products.length} products · live from Firebase`}
           </p>
         </div>
-        <button className="btn-sm btn-green" onClick={() => setShowAdd(true)} style={{ fontSize: 13, padding: "8px 16px" }}>
+        <button className="btn-sm btn-green" onClick={openAdd} style={{ fontSize: 13, padding: "8px 16px" }}>
           + Add Product
         </button>
       </div>
@@ -328,7 +404,7 @@ export default function ProductsPage() {
       {/* ── Add Product Modal ── */}
       {showAdd && (
         <div
-          onClick={(e) => { if (e.target === e.currentTarget) { setShowAdd(false); setForm(emptyForm); } }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
           style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
             backdropFilter: "blur(6px)", zIndex: 1000,
@@ -348,10 +424,10 @@ export default function ProductsPage() {
               background: "rgba(34,197,94,0.06)", flexShrink: 0,
             }}>
               <div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: "white" }}>Add New Product</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: "white" }}>{editing ? "Edit Product" : "Add New Product"}</div>
                 <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Saved to Firebase instantly</div>
               </div>
-              <button onClick={() => { setShowAdd(false); setForm(emptyForm); }}
+              <button onClick={closeModal}
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: "#64748B", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
 
@@ -554,6 +630,24 @@ export default function ProductsPage() {
                     )}
                   </div>
                 </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+                  <Field label="Stock">
+                    <input type="number" min={0} value={form.stock} onChange={(e) => setF("stock", e.target.value)} style={{ width: "100%", boxSizing: "border-box" }} />
+                  </Field>
+                  <Field label="Status">
+                    <select
+                      value={form.status}
+                      onChange={(e) => {
+                        const status = e.target.value;
+                        setForm((f) => ({ ...f, status, stock: status === "sold" ? "0" : f.stock === "0" ? "1" : f.stock }));
+                      }}
+                      style={{ width: "100%", boxSizing: "border-box" }}
+                    >
+                      <option value="available">Available</option>
+                      <option value="sold">Sold</option>
+                    </select>
+                  </Field>
+                </div>
               </div>
 
               {/* ── Description ── */}
@@ -755,13 +849,13 @@ export default function ProductsPage() {
             {/* Footer */}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.05)", flexShrink: 0, background: "rgba(0,0,0,0.2)" }}>
               {saving && <div style={{ fontSize: 12, color: "#64748B", alignSelf: "center", marginRight: "auto" }}>{saveProgress}</div>}
-              <button onClick={() => { setShowAdd(false); setForm(emptyForm); }}
+              <button onClick={closeModal}
                 style={{ padding: "9px 20px", borderRadius: 8, fontSize: 13, background: "rgba(255,255,255,0.05)", color: "#64748B", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
                 Cancel
               </button>
               <button onClick={handleAdd} disabled={saving}
                 style={{ padding: "9px 28px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: saving ? "#334155" : "linear-gradient(135deg,#16A34A,#22C55E)", color: "white", border: "none", cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(34,197,94,0.3)" }}>
-                {saving ? "Saving..." : "Add Product"}
+                {saving ? "Saving..." : editing ? "Save Changes" : "Add Product"}
               </button>
             </div>
           </div>
@@ -848,7 +942,7 @@ export default function ProductsPage() {
                     </td>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button className="btn-sm btn-blue">Edit</button>
+                        <button className="btn-sm btn-blue" onClick={() => openEdit(product)}>Edit</button>
                         <button className="btn-sm btn-red" onClick={() => handleDelete(product.id)}>Delete</button>
                       </div>
                     </td>
