@@ -111,7 +111,6 @@ export default function InvoicePdf({ bill, origin }: { bill: Bill; origin: strin
   // Files from /public (like the default signature) need the full URL; data URLs pass through.
   const absolute = (src: string) => (src.startsWith("/") ? `${origin}${src}` : src);
   const desc = describeProduct(bill);
-  const rate = Number(bill.gstRate) || 0;
 
   return (
     <Document title={`Invoice ${bill.invoiceNumber}`} author={company.name} creator={company.name}>
@@ -254,10 +253,6 @@ export default function InvoicePdf({ bill, origin }: { bill: Bill; origin: strin
                 </View>
               </>
             ) : null}
-            <View style={[s.tRow, { borderTopWidth: 0.8, borderTopColor: LINE }]}>
-              <Text style={s.small}>Total GST ({rate}%)</Text>
-              <Text style={s.small}>₹ {formatINR(t.cgst + t.sgst)}</Text>
-            </View>
           </View>
         </View>
 

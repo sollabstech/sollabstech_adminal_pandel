@@ -10,7 +10,7 @@ export const company = {
   instagram: "@sollabs_tech_laptop__custom_pc",
   // Leave empty to hide the GSTIN line on the bill.
   gstin: "",
-  defaultGstRate: 8,
+  defaultGstRate: 3,
   // Authorised signature printed on every bill by default (PNG in /public).
   // Set to null to leave the line blank for a hand signature.
   authorisedSignature: "/invoice/signature-authorised.png" as string | null,
