@@ -265,10 +265,6 @@ export function validate(bill: Bill): Errors {
   if (!p.brand.trim()) e.brand = "Brand is required.";
   if (!p.model.trim()) e.model = "Model is required.";
 
-  if (bill.type === "mobile") {
-    if (!/^\d{15}$/.test(bill.mobile.imei1)) e.imei1 = "IMEI 1 must be exactly 15 digits.";
-    if (bill.mobile.imei2 && !/^\d{15}$/.test(bill.mobile.imei2)) e.imei2 = "IMEI 2 must be exactly 15 digits.";
-  }
 
   if (!toPaise(bill.amount)) e.amount = "Enter the amount.";
   if (bill.exchange) {
