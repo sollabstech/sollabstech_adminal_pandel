@@ -17,10 +17,13 @@ interface Deal {
   sollabsShare: number;
   cognitoShare: number;
   note?: string;
+  status?: "stock" | "sold";
 }
 
+const isSold = (d: Deal) => d.status ? d.status === "sold" : d.soldPrice > 0;
+
 const today = () => new Date().toISOString().slice(0, 10);
-const blank = () => ({ laptop: "", date: today(), buyPrice: "", soldPrice: "", sollabsShare: String(DEFAULT_SOLLABS), cognitoShare: String(DEFAULT_COGNITO), note: "" });
+type Modal = { mode: "add" } | { mode: "sell"; deal: Deal } | { mode: "edit"; deal: Deal };
 const inr = (n: number) => (n < 0 ? "-" : "") + "₹" + Math.abs(n).toLocaleString("en-IN");
 const num = (s: string) => Number(s.replace(/[^\d.]/g, "")) || 0;
 
@@ -33,8 +36,8 @@ export default function PartnerPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [form, setForm] = useState(blank);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [modal, setModal] = useState<Modal | null>(null);
+  const [f, setF] = useState({ laptop: "", buyPrice: "", soldPrice: "", sollabsShare: "", cognitoShare: "", date: today(), note: "" });
   const [saving, setSaving] = useState(false);
   const [month, setMonth] = useState("all");
 
@@ -46,36 +49,51 @@ export default function PartnerPage() {
     }, (err) => { setLoadError(err.message); setLoading(false); });
   }, []);
 
-  const months = [...new Set(deals.map((d) => d.date.slice(0, 7)))];
-  const shown = month === "all" ? deals : deals.filter((d) => d.date.startsWith(month));
+  const stock = deals.filter((d) => !isSold(d));
+  const sold = deals.filter(isSold);
+  const months = [...new Set(sold.map((d) => d.date.slice(0, 7)))];
+  const shown = month === "all" ? sold : sold.filter((d) => d.date.startsWith(month));
   const totals = shown.reduce((t, d) => {
     const c = calc(d);
     return { profit: t.profit + c.profit, sollabs: t.sollabs + d.sollabsShare, cognito: t.cognito + d.cognitoShare, partner: t.partner + c.partner, sold: t.sold + d.soldPrice };
   }, { profit: 0, sollabs: 0, cognito: 0, partner: 0, sold: 0 });
 
-  const draft = { buyPrice: num(form.buyPrice), soldPrice: num(form.soldPrice), sollabsShare: num(form.sollabsShare), cognitoShare: num(form.cognitoShare) };
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
+
+  function open(m: Modal) {
+    const d = m.mode === "add" ? undefined : m.deal;
+    setF({
+      laptop: d?.laptop ?? "", buyPrice: d ? String(d.buyPrice) : "",
+      soldPrice: d && isSold(d) ? String(d.soldPrice) : "",
+      sollabsShare: String(d && isSold(d) ? d.sollabsShare : DEFAULT_SOLLABS),
+      cognitoShare: String(d && isSold(d) ? d.cognitoShare : DEFAULT_COGNITO),
+      date: m.mode === "sell" ? today() : d?.date ?? today(), note: d?.note ?? "",
+    });
+    setModal(m);
+  }
+
+  const draft = { buyPrice: num(f.buyPrice), soldPrice: num(f.soldPrice), sollabsShare: num(f.sollabsShare), cognitoShare: num(f.cognitoShare) };
   const preview = calc(draft);
-  const set = (k: keyof ReturnType<typeof blank>) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const needsSold = modal?.mode === "sell" || (modal?.mode === "edit" && isSold(modal.deal));
+  const valid = !!f.laptop.trim() && draft.buyPrice > 0 && (!needsSold || draft.soldPrice > 0);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.laptop.trim() || !draft.buyPrice || !draft.soldPrice) return;
+    if (!modal || !valid) return;
     setSaving(true);
-    const data = { laptop: form.laptop.trim(), date: form.date || today(), ...draft, note: form.note.trim() };
     try {
-      if (editing) await updateDoc(doc(db, "partnerDeals", editing), data);
-      else await addDoc(collection(db, "partnerDeals"), { ...data, createdAt: serverTimestamp() });
-      setForm(blank()); setEditing(null);
+      if (modal.mode === "add") {
+        await addDoc(collection(db, "partnerDeals"), { laptop: f.laptop.trim(), buyPrice: draft.buyPrice, soldPrice: 0, sollabsShare: 0, cognitoShare: 0, date: f.date || today(), note: f.note.trim(), status: "stock", createdAt: serverTimestamp() });
+      } else {
+        await updateDoc(doc(db, "partnerDeals", modal.deal.id), needsSold
+          ? { laptop: f.laptop.trim(), ...draft, date: f.date || today(), note: f.note.trim(), status: "sold" }
+          : { laptop: f.laptop.trim(), buyPrice: draft.buyPrice, date: f.date || today(), note: f.note.trim() });
+      }
+      setModal(null);
     } catch (err) {
       alert("Couldn't save: " + (err as Error).message);
     }
     setSaving(false);
-  }
-
-  function edit(d: Deal) {
-    setEditing(d.id);
-    setForm({ laptop: d.laptop, date: d.date, buyPrice: String(d.buyPrice), soldPrice: String(d.soldPrice), sollabsShare: String(d.sollabsShare), cognitoShare: String(d.cognitoShare), note: d.note ?? "" });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function remove(d: Deal) {
@@ -163,41 +181,32 @@ export default function PartnerPage() {
         {stat("Partner balance", totals.partner, totals.partner < 0 ? "#F87171" : "#4ADE80", "Profit after both shares")}
       </div>
 
-      {/* Add / edit deal */}
-      <form onSubmit={save} className="card partner-form" style={{ padding: 20, marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "white", marginBottom: 14 }}>{editing ? "✏️ Edit deal" : "➕ Add a sold laptop"}</div>
-          <div className="partner-grid">
-            <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Laptop *</label><input value={form.laptop} onChange={set("laptop")} placeholder="e.g. ASUS TUF A15 Ryzen 7" style={{ width: "100%" }} /></div>
-            <div><label style={lbl}>Bought for (₹) *</label><input inputMode="numeric" value={form.buyPrice} onChange={set("buyPrice")} placeholder="50000" style={{ width: "100%" }} /></div>
-            <div><label style={lbl}>Sold for (₹) *</label><input inputMode="numeric" value={form.soldPrice} onChange={set("soldPrice")} placeholder="60000" style={{ width: "100%" }} /></div>
-            <div><label style={lbl}>Sollabs Tech share (₹)</label><input inputMode="numeric" value={form.sollabsShare} onChange={set("sollabsShare")} style={{ width: "100%" }} /></div>
-            <div><label style={lbl}>Cognito Tech Media share (₹)</label><input inputMode="numeric" value={form.cognitoShare} onChange={set("cognitoShare")} style={{ width: "100%" }} /></div>
-            <div><label style={lbl}>Date</label><input type="date" value={form.date} onChange={set("date")} style={{ width: "100%" }} /></div>
-            <div><label style={lbl}>Note</label><input value={form.note} onChange={set("note")} placeholder="Optional" style={{ width: "100%" }} /></div>
-          </div>
+      {/* In stock */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "4px 0 12px" }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: "white" }}>💻 In stock ({stock.length})</h2>
+        <button className="btn-sm btn-green" style={{ padding: "9px 16px", fontSize: 13.5 }} onClick={() => open({ mode: "add" })}>+ Add laptop</button>
+      </div>
+      {stock.length === 0 ? (
+        <div className="card" style={{ padding: 28, textAlign: "center", color: "#334155", fontSize: 14, marginBottom: 24 }}>No laptops in stock. Tap <b>+ Add laptop</b> when you buy one.</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 24 }}>
+          {stock.map((d) => (
+            <div key={d.id} className="card" style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: "white", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.laptop}</div>
+                <div style={{ fontSize: 12.5, color: "#64748B" }}>Bought {inr(d.buyPrice)} · {d.date}</div>
+              </div>
+              <button className="btn-sm btn-blue" onClick={() => open({ mode: "edit", deal: d })}>Edit</button>
+              <button className="btn-sm btn-green" style={{ fontWeight: 700 }} onClick={() => open({ mode: "sell", deal: d })}>Sold ✓</button>
+            </div>
+          ))}
         </div>
+      )}
 
-        <div style={{ padding: 16, borderRadius: 12, background: "rgba(0,102,255,0.06)", border: "1px solid rgba(0,102,255,0.15)", alignSelf: "start" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748B", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Calculation</div>
-          {line("Sold for", inr(draft.soldPrice))}
-          {line("− Bought for", inr(draft.buyPrice))}
-          {line("Profit", inr(preview.profit), "white", true)}
-          {line("− Sollabs Tech", inr(draft.sollabsShare), "#60A5FA")}
-          {line("− Cognito Tech Media", inr(draft.cognitoShare), "#C084FC")}
-          {line("Partner gets", inr(preview.partner), preview.partner < 0 ? "#F87171" : "#4ADE80", true)}
-          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-            <button type="submit" disabled={saving || !form.laptop.trim() || !draft.buyPrice || !draft.soldPrice} className="btn-sm btn-green" style={{ flex: 1, padding: "10px" }}>
-              {saving ? "Saving…" : editing ? "Save changes" : "Add deal"}
-            </button>
-            {editing && <button type="button" className="btn-sm" onClick={() => { setEditing(null); setForm(blank()); }}>Cancel</button>}
-          </div>
-        </div>
-      </form>
-
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: "white", marginBottom: 12 }}>✅ Sold ({shown.length})</h2>
       {/* Deals */}
       {!loading && shown.length === 0 ? (
-        <div className="card" style={{ padding: 50, textAlign: "center", color: "#334155", fontSize: 14 }}>No deals yet. Add a sold laptop above.</div>
+        <div className="card" style={{ padding: 50, textAlign: "center", color: "#334155", fontSize: 14 }}>No sold laptops yet. Tap Sold ✓ on a laptop when you sell it.</div>
       ) : (
         <div className="card" style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 820 }}>
@@ -224,7 +233,7 @@ export default function PartnerPage() {
                     <td style={{ padding: 12, color: "#C084FC" }}>{inr(d.cognitoShare)}</td>
                     <td style={{ padding: 12, fontWeight: 700, color: c.partner < 0 ? "#F87171" : "#4ADE80" }}>{inr(c.partner)}</td>
                     <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
-                      <button className="btn-sm btn-blue" onClick={() => edit(d)}>Edit</button>{" "}
+                      <button className="btn-sm btn-blue" onClick={() => open({ mode: "edit", deal: d })}>Edit</button>{" "}
                       <button className="btn-sm btn-red" onClick={() => remove(d)}>Del</button>
                     </td>
                   </tr>
@@ -235,11 +244,45 @@ export default function PartnerPage() {
         </div>
       )}
 
-      <style>{`
-        .partner-form { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
-        .partner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        @media (max-width: 900px) { .partner-form, .partner-grid { grid-template-columns: 1fr; } }
-      `}</style>
+      {modal && (
+        <div onClick={() => setModal(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <form onSubmit={save} onClick={(e) => e.stopPropagation()} className="card" style={{ width: "100%", maxWidth: 420, padding: 22, background: "#0B1526" }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "white", marginBottom: 4 }}>
+              {modal.mode === "add" ? "+ Add laptop" : modal.mode === "sell" ? "Confirm sold" : "Edit"}
+            </div>
+            {modal.mode === "sell" && <div style={{ fontSize: 13, color: "#64748B", marginBottom: 14 }}>{modal.deal.laptop} · bought {inr(modal.deal.buyPrice)}</div>}
+
+            <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+              {modal.mode !== "sell" && <>
+                <div><label style={lbl}>Laptop</label><input autoFocus value={f.laptop} onChange={set("laptop")} placeholder="e.g. ASUS TUF A15 Ryzen 7" style={{ width: "100%" }} /></div>
+                <div><label style={lbl}>Bought for (₹)</label><input inputMode="numeric" value={f.buyPrice} onChange={set("buyPrice")} placeholder="50000" style={{ width: "100%" }} /></div>
+              </>}
+              {needsSold && <>
+                <div><label style={lbl}>Sold for (₹)</label><input autoFocus={modal.mode === "sell"} inputMode="numeric" value={f.soldPrice} onChange={set("soldPrice")} placeholder="60000" style={{ width: "100%", fontSize: 18, fontWeight: 700 }} /></div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div><label style={lbl}>Sollabs Tech (₹)</label><input inputMode="numeric" value={f.sollabsShare} onChange={set("sollabsShare")} style={{ width: "100%" }} /></div>
+                  <div><label style={lbl}>Cognito (₹)</label><input inputMode="numeric" value={f.cognitoShare} onChange={set("cognitoShare")} style={{ width: "100%" }} /></div>
+                </div>
+                {draft.soldPrice > 0 && (
+                  <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(0,102,255,0.06)", border: "1px solid rgba(0,102,255,0.15)" }}>
+                    {line("Profit", inr(preview.profit), "white", false)}
+                    {line("Partner gets", inr(preview.partner), preview.partner < 0 ? "#F87171" : "#4ADE80", true)}
+                  </div>
+                )}
+              </>}
+              <div><label style={lbl}>{needsSold ? "Sold on" : "Date"}</label><input type="date" value={f.date} onChange={set("date")} style={{ width: "100%" }} /></div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+              <button type="button" className="btn-sm" style={{ flex: 1, padding: 11 }} onClick={() => setModal(null)}>Cancel</button>
+              <button type="submit" disabled={saving || !valid} className="btn-sm btn-green" style={{ flex: 2, padding: 11, fontWeight: 700, opacity: saving || !valid ? 0.5 : 1 }}>
+                {saving ? "Saving…" : modal.mode === "add" ? "Add" : modal.mode === "sell" ? "Confirm sold" : "Save"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
     </div>
   );
 }
