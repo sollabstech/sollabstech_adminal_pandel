@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
+import BillButton from "@/features/invoice/BillButton";
 
 interface Product {
   id: string;
@@ -942,6 +943,7 @@ export default function ProductsPage() {
                     </td>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", gap: 6 }}>
+                        <BillButton product={product} />
                         <button className="btn-sm btn-blue" onClick={() => openEdit(product)}>Edit</button>
                         <button className="btn-sm btn-red" onClick={() => handleDelete(product.id)}>Delete</button>
                       </div>
