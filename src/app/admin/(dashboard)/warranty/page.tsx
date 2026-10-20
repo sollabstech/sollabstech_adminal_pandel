@@ -5,7 +5,7 @@ import {
   collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { warrantyKey, savePublicWarranty, deletePublicWarranty } from "@/lib/warrantyPublic";
+import { warrantyKey, savePublicWarranty, deletePublicWarranty, syncPhoneWarranty, normalisePhone } from "@/lib/warrantyPublic";
 
 type DeviceType = "laptop" | "mobile";
 
@@ -92,6 +92,8 @@ export default function WarrantyPage() {
     records.forEach((r) => {
       if (r.serialNumber) savePublicWarranty(r).catch((e) => console.error("public warranty sync failed", e));
     });
+    [...new Set(records.map((r) => normalisePhone(r.clientPhone ?? "")))].forEach((p) =>
+      syncPhoneWarranty(p, records).catch((e) => console.error("phone warranty sync failed", e)));
   }, [loading, records]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -139,8 +141,7 @@ export default function WarrantyPage() {
   function validate() {
     const e: Record<string, string> = {};
     const key = warrantyKey(form.serialNumber);
-    if (!key) e.serialNumber = "Required";
-    else if (records.some((r) => r.id !== editing?.id && warrantyKey(r.serialNumber ?? "") === key)) e.serialNumber = "This serial / warranty ID is already used by another record";
+    if (key && records.some((r) => r.id !== editing?.id && warrantyKey(r.serialNumber ?? "") === key)) e.serialNumber = "This serial / warranty ID is already used by another record";
     if (!form.laptopName.trim()) e.laptopName = "Required";
     if (!form.clientName.trim()) e.clientName = "Required";
     if (!/^(?:\+?91)?[6-9]\d{9}$/.test(digits(form.clientPhone).replace(/^0/, ""))) e.clientPhone = "Enter a valid 10-digit mobile number";
@@ -173,13 +174,18 @@ export default function WarrantyPage() {
     try {
       if (editing) {
         await updateDoc(doc(db, "warranty", editing.id), data);
-        if (warrantyKey(editing.serialNumber ?? "") !== warrantyKey(data.serialNumber)) {
+        if (editing.serialNumber && warrantyKey(editing.serialNumber) !== warrantyKey(data.serialNumber)) {
           await deletePublicWarranty(editing.serialNumber);
         }
       } else {
         await addDoc(collection(db, "warranty"), { ...data, createdAt: serverTimestamp() });
       }
-      await savePublicWarranty(data);
+      if (data.serialNumber) await savePublicWarranty(data);
+      const after = [...records.filter((r) => r.id !== editing?.id), data];
+      await syncPhoneWarranty(data.clientPhone, after);
+      if (editing && normalisePhone(editing.clientPhone ?? "") !== normalisePhone(data.clientPhone)) {
+        await syncPhoneWarranty(editing.clientPhone, after);
+      }
       closeModal();
     } catch (err) {
       console.error(err);
@@ -192,6 +198,7 @@ export default function WarrantyPage() {
     if (!window.confirm(`Delete the warranty record for ${r.serialNumber} (${r.clientName})? Customers will no longer be able to check it online.`)) return;
     await deleteDoc(doc(db, "warranty", r.id));
     if (r.serialNumber) await deletePublicWarranty(r.serialNumber);
+    await syncPhoneWarranty(r.clientPhone ?? "", records.filter((x) => x.id !== r.id));
   }
 
   function statusBadge(endDate: string) {
@@ -213,7 +220,7 @@ export default function WarrantyPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "white" }}>Warranty Records</h1>
           <p style={{ fontSize: 13, color: "#475569" }}>
-            {loading ? "Loading..." : `${records.length} total · customers can check by serial at sollabstech.com/warranty`}
+            {loading ? "Loading..." : `${records.length} total · customers check with their phone number at sollabstech.com/warranty`}
           </p>
         </div>
         <button onClick={openAdd}
@@ -223,7 +230,7 @@ export default function WarrantyPage() {
       </div>
 
       <div style={{ padding: "12px 16px", borderRadius: 10, marginBottom: 20, fontSize: 12.5, lineHeight: 1.6, background: "rgba(0,102,255,0.06)", border: "1px solid rgba(0,102,255,0.2)", color: "#94A3B8" }}>
-        🔒 Customer name, phone, city, price, IMEI and notes stay private to admins. The public checker only shows the serial, device, brand and warranty dates.
+        🔒 Customer name, phone, city, price, IMEI and notes stay private to admins. The public checker (by phone number) only shows the device, brand and warranty dates.
       </div>
 
       {loadError && (
@@ -341,12 +348,12 @@ export default function WarrantyPage() {
               <div style={sectionStyle}>{isMobile ? "Mobile Details" : "Laptop Details"}</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
-                  <label style={labelStyle}>Serial / Warranty ID *</label>
+                  <label style={labelStyle}>Serial / Warranty ID</label>
                   <input placeholder="e.g. 197979" value={form.serialNumber} onChange={(e) => set("serialNumber", e.target.value)}
                     style={{ width: "100%", boxSizing: "border-box", fontFamily: "monospace", border: errors.serialNumber ? "1px solid #FF6060" : undefined }} />
                   {errors.serialNumber
                     ? <div style={errStyle}>{errors.serialNumber}</div>
-                    : <div style={hintStyle}>From the Sollabs Tech sticker. Customers enter this to check their warranty.</div>}
+                    : <div style={hintStyle}>Optional. Customers check their warranty with their phone number.</div>}
                 </div>
                 <div>
                   <label style={labelStyle}>Brand</label>
