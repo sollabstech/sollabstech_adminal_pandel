@@ -1,9 +1,11 @@
 export type ProductType = "laptop" | "mobile";
-export type Condition = "New" | "Refurbished" | "Pre-owned";
+// Same condition names the admin products page uses, so the bill matches the product.
+export type Condition = string;
 export type WarrantyOption = "No warranty" | "Brand warranty" | "Shop warranty";
 export type PaymentMode = "Cash" | "UPI" | "Card" | "Bank transfer";
 
-export const CONDITIONS: Condition[] = ["New", "Refurbished", "Pre-owned"];
+export const LAPTOP_CONDITIONS: Condition[] = ["Brand New", "Refurbished", "Demo", "Used Laptop"];
+export const MOBILE_CONDITIONS: Condition[] = ["Brand New", "Refurbished", "Used"];
 export const WARRANTY_OPTIONS: WarrantyOption[] = ["No warranty", "Brand warranty", "Shop warranty"];
 export const PAYMENT_MODES: PaymentMode[] = ["Cash", "UPI", "Card", "Bank transfer"];
 export const LAPTOP_ACCESSORIES = ["Charger", "Bag", "Mouse", "Box", "Full box"] as const;
@@ -89,7 +91,7 @@ export function emptyBill(defaultGstRate: number): Bill {
     customer: { name: "", phone: "", address: "" },
     laptop: { brand: "", model: "", processor: "", ram: "", storage: "", screen: "", graphics: "", os: "", serial: "" },
     mobile: { brand: "", model: "", ram: "", storage: "", colour: "", imei1: "", imei2: "" },
-    condition: "New",
+    condition: "Brand New",
     warranty: "No warranty",
     warrantyNote: "",
     accessories: [...DEFAULT_ACCESSORIES],

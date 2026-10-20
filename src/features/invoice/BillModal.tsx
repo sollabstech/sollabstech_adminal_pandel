@@ -7,7 +7,8 @@ import {
   type Condition,
   type PaymentMode,
   type WarrantyOption,
-  CONDITIONS,
+  LAPTOP_CONDITIONS,
+  MOBILE_CONDITIONS,
   LAPTOP_ACCESSORIES,
   MOBILE_ACCESSORIES,
   PAYMENT_MODES,
@@ -42,13 +43,6 @@ export interface BillableProduct {
 
 const MOBILE_CATEGORIES = ["Smartphones", "Gaming Phones", "Mobile Phones", "Refurbished Phones"];
 
-function mapCondition(c = ""): Condition {
-  const v = c.toLowerCase();
-  if (v.includes("new")) return "New";
-  if (v.includes("used") || v.includes("pre-owned")) return "Pre-owned";
-  return "Refurbished"; // Demo and Refurbished
-}
-
 // Splits the product name into brand + model when the product has no brand field.
 function brandAndModel(p: BillableProduct): { brand: string; model: string } {
   const name = p.name.trim();
@@ -66,7 +60,7 @@ function billFromProduct(p: BillableProduct): Bill {
   const type = p.productType === "mobile" || MOBILE_CATEGORIES.includes(p.category ?? "") ? "mobile" : "laptop";
   const { brand, model } = brandAndModel(p);
   bill.type = type;
-  bill.condition = mapCondition(p.condition);
+  bill.condition = p.condition?.trim() || "Brand New";
   bill.amount = p.price ? String(p.price) : "";
   bill.authorisedSignature = company.authorisedSignature;
   if (type === "laptop") {
@@ -220,7 +214,7 @@ export default function BillModal({ product, onClose }: { product: BillableProdu
                 <div>
                   <label style={label}>Condition</label>
                   <select value={bill.condition} onChange={(e) => set("condition", e.target.value as Condition)} style={{ height: 42 }}>
-                    {CONDITIONS.map((c) => <option key={c}>{c}</option>)}
+                    {[...new Set([bill.condition, ...(isLaptop ? LAPTOP_CONDITIONS : MOBILE_CONDITIONS)])].map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div><label style={label}>Amount (₹) *</label>{input({ inputMode: "decimal", value: bill.amount, onChange: (e) => set("amount", e.target.value.replace(/[^\d.]/g, "")), invalid: !!err("amount") })}{err("amount") && <div style={errText}>{err("amount")}</div>}</div>
