@@ -39,8 +39,6 @@ export default function DashboardPage() {
     products: 0,
     portfolio: 0,
     clients: 0,
-    warranty: 0,
-    warrantyExpired: 0,
     blog: 0,
   });
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
@@ -82,16 +80,6 @@ export default function DashboardPage() {
       setCounts((c) => ({ ...c, clients: snap.size }));
     }, () => {}));
 
-    // Warranty
-    unsubs.push(onSnapshot(collection(db, "warranty"), (snap) => {
-      const today = new Date().toISOString().split("T")[0];
-      const expired = snap.docs.filter((d) => {
-        const data = d.data();
-        return data.warrantyEndDate && data.warrantyEndDate < today;
-      }).length;
-      setCounts((c) => ({ ...c, warranty: snap.size, warrantyExpired: expired }));
-    }, () => {}));
-
     // Blog
     unsubs.push(onSnapshot(collection(db, "blog"), (snap) => {
       setCounts((c) => ({ ...c, blog: snap.size }));
@@ -110,8 +98,6 @@ export default function DashboardPage() {
   const summary = [
     { label: "New Messages Today", value: todayMessages, icon: "📩" },
     { label: "Total Messages", value: counts.totalMessages, icon: "📬" },
-    { label: "Active Warranties", value: counts.warranty - counts.warrantyExpired, icon: "🛡️" },
-    { label: "Expired Warranties", value: counts.warrantyExpired, icon: "⚠️" },
     { label: "Blog Posts", value: counts.blog, icon: "📝" },
   ];
 
