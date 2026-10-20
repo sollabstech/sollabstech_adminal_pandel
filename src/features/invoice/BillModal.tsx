@@ -236,15 +236,15 @@ export default function BillModal({ product, onClose }: { product: BillableProdu
             <div style={{ gridColumn: "1 / -1" }}><label style={label}>Address</label>{input({ value: bill.customer.address, onChange: (e) => setCustomer("address", e.target.value), placeholder: "Optional" })}</div>
           </div>
 
-          {/* Unit */}
-          <div style={section}>{isLaptop ? "This laptop" : "This phone"}</div>
-          {isLaptop ? (
-            <div><label style={label}>Serial number</label>{input({ value: bill.laptop.serial, onChange: (e) => setProduct("serial", e.target.value), placeholder: "From the sticker underneath", style: { fontFamily: "monospace" } })}</div>
-          ) : (
-            <div className="bill-grid">
-              <div><label style={label}>IMEI 1 *</label>{input({ inputMode: "numeric", value: bill.mobile.imei1, onChange: (e) => setProduct("imei1", digits(e.target.value, 15)), placeholder: "15 digits (dial *#06#)", invalid: !!err("imei1"), style: { fontFamily: "monospace" } })}{err("imei1") && <div style={errText}>{err("imei1")}</div>}</div>
-              <div><label style={label}>IMEI 2</label>{input({ inputMode: "numeric", value: bill.mobile.imei2, onChange: (e) => setProduct("imei2", digits(e.target.value, 15)), placeholder: "Optional", invalid: !!err("imei2"), style: { fontFamily: "monospace" } })}{err("imei2") && <div style={errText}>{err("imei2")}</div>}</div>
-            </div>
+          {/* Unit: each phone has its own IMEI */}
+          {!isLaptop && (
+            <>
+              <div style={section}>This phone</div>
+              <div className="bill-grid">
+                <div><label style={label}>IMEI 1 *</label>{input({ inputMode: "numeric", value: bill.mobile.imei1, onChange: (e) => setProduct("imei1", digits(e.target.value, 15)), placeholder: "15 digits (dial *#06#)", invalid: !!err("imei1"), style: { fontFamily: "monospace" } })}{err("imei1") && <div style={errText}>{err("imei1")}</div>}</div>
+                <div><label style={label}>IMEI 2</label>{input({ inputMode: "numeric", value: bill.mobile.imei2, onChange: (e) => setProduct("imei2", digits(e.target.value, 15)), placeholder: "Optional", invalid: !!err("imei2"), style: { fontFamily: "monospace" } })}{err("imei2") && <div style={errText}>{err("imei2")}</div>}</div>
+              </div>
+            </>
           )}
 
           {/* Payment */}
