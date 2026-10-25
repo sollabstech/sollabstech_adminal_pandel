@@ -137,7 +137,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "laptop" | "mobile">("all");
   const [showAdd, setShowAdd] = useState(false);
-  const [editing, setEditing] = useState<{ id: string; slug: string; hadImei: boolean } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; slug: string; hadImei: boolean; isDraft: boolean } | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [dragOver, setDragOver] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -241,12 +241,13 @@ export default function ProductsPage() {
       physicalCondition: str("physicalCondition"), screenCondition: str("screenCondition"), partsReplaced: str("partsReplaced"),
       biometricWorking: str("biometricWorking"), warrantyRemaining: str("warrantyRemaining"), purchaseDate: str("purchaseDate"),
       stock: product.stock != null ? String(product.stock) : "1",
-      status: product.status ?? "available",
+      // A draft opens as "Available" so Publish puts it live.
+      status: product.status === "draft" || !product.status ? "available" : product.status,
       imageFiles: images.map(() => null),
       imagePreviews: images,
     });
     const slug = typeof raw.slug === "string" ? raw.slug : "";
-    setEditing({ id: product.id, slug, hadImei: false });
+    setEditing({ id: product.id, slug, hadImei: false, isDraft: product.status === "draft" });
     setShowAdd(true);
     if (isPhone) {
       try {
@@ -268,8 +269,10 @@ export default function ProductsPage() {
     }
   };
 
-  const handleAdd = async () => {
-    if (!form.name || !form.price) return;
+  // asDraft saves without publishing: the website never shows drafts. Only the name is required.
+  const handleAdd = async (asDraft = false) => {
+    if (!form.name.trim()) { alert("Enter a product name first."); return; }
+    if (!asDraft && !form.price) { alert("Enter your price to publish, or save it as a draft."); return; }
     setSaving(true);
     try {
       const imageUrls: string[] = [];
@@ -301,11 +304,11 @@ export default function ProductsPage() {
         name: form.name,
         slug,
         category: form.category,
-        price: parseInt(form.price),
+        price: parseInt(form.price) || 0,
         originalPrice: form.originalPrice ? parseInt(form.originalPrice) : null,
         stock: Math.max(0, parseInt(form.stock) || 0),
         condition: form.condition,
-        status: form.status,
+        status: asDraft ? "draft" : form.status,
         images: imageUrls,
         image: imageUrls[0] || "",
         videoUrl: form.videoUrl.trim(),
@@ -394,7 +397,7 @@ export default function ProductsPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "white" }}>Products</h1>
           <p style={{ fontSize: 13, color: "#475569" }}>
-            {loading ? "Loading..." : `${products.length} products · live from Firebase`}
+            {loading ? "Loading..." : `${products.length} products${products.some((p) => p.status === "draft") ? ` · ${products.filter((p) => p.status === "draft").length} draft (not on website)` : ""} · live from Firebase`}
           </p>
         </div>
         <button className="btn-sm btn-green" onClick={openAdd} style={{ fontSize: 13, padding: "8px 16px" }}>
@@ -854,9 +857,13 @@ export default function ProductsPage() {
                 style={{ padding: "9px 20px", borderRadius: 8, fontSize: 13, background: "rgba(255,255,255,0.05)", color: "#64748B", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
                 Cancel
               </button>
-              <button onClick={handleAdd} disabled={saving}
+              <button onClick={() => handleAdd(true)} disabled={saving} title="Save without showing it on the website"
+                style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: "rgba(250,204,21,0.1)", color: "#FDE047", border: "1px solid rgba(250,204,21,0.3)", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.5 : 1 }}>
+                {editing && !editing.isDraft ? "Move to Draft" : "Save as Draft"}
+              </button>
+              <button onClick={() => handleAdd(false)} disabled={saving}
                 style={{ padding: "9px 28px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: saving ? "#334155" : "linear-gradient(135deg,#16A34A,#22C55E)", color: "white", border: "none", cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(34,197,94,0.3)" }}>
-                {saving ? "Saving..." : editing ? "Save Changes" : "Add Product"}
+                {saving ? "Saving..." : !editing ? "Add Product" : editing.isDraft ? "Publish" : "Save Changes"}
               </button>
             </div>
           </div>
@@ -939,7 +946,7 @@ export default function ProductsPage() {
                     <td style={{ padding: "14px 16px", fontSize: 13, color: product.stock === 0 ? "#F87171" : "#4ADE80" }}>{product.stock}</td>
                     <td style={{ padding: "14px 16px" }}><span className="badge badge-blue">{product.condition}</span></td>
                     <td style={{ padding: "14px 16px" }}>
-                      <span className={`badge ${product.status === "available" ? "badge-green" : "badge-red"}`}>{product.status}</span>
+                      <span className={`badge ${product.status === "available" ? "badge-green" : product.status === "draft" ? "badge-yellow" : "badge-red"}`}>{product.status}</span>
                     </td>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", gap: 6 }}>
