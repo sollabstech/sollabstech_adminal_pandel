@@ -19,6 +19,9 @@ interface SellRequest {
   accessories?: string;
   expectedPrice?: string;
   city?: string;
+  state?: string;
+  district?: string;
+  estimate?: string;
   status: Status;
   createdAt?: { seconds: number } | null;
 }
@@ -115,8 +118,10 @@ export default function SellRequestsPage() {
                   {r.specs && <div>⚙️ {r.specs}</div>}
                   <div>🔧 {r.condition || "—"}{r.age ? ` · ${r.age} old` : ""}</div>
                   {r.accessories && <div>📦 {r.accessories}</div>}
+                  {r.estimate && <div>🧮 Calculator: {r.estimate}</div>}
                   {r.expectedPrice && <div>💰 Expects ₹{Number(r.expectedPrice).toLocaleString("en-IN")}</div>}
-                  <div>👤 {r.name}{r.city ? ` · ${r.city}` : ""}</div>
+                  <div>👤 {r.name}</div>
+                  {(r.district || r.city) && <div>📍 {r.district && r.state ? `${r.district}, ${r.state}` : r.city}</div>}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
                   <a href={`tel:+91${r.phone}`} className="btn-sm btn-blue" style={{ textDecoration: "none" }}>📞 {r.phone}</a>
